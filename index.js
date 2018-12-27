@@ -45,9 +45,10 @@ exports.init = function (sbot, config) {
   //state:
   /*
     {
-      <author>: {
+      <author>: [{
+        sequence: <sequence at which author set this key>,
         key: <author's latest privacy key>
-      }
+      }]
     }
   */
 
@@ -57,20 +58,17 @@ exports.init = function (sbot, config) {
   var cache = {}
 
 
-  sbot._flumeUse('private-groups/remote-keys', Reduce(1, function (acc, data) {
+  var remoteKeys = sbot._flumeUse('private-groups/remote-keys', Reduce(1, function (acc, data) {
     state = acc = acc || {}
     var msg = data.value
     if(msg.content.type === 'private-msg-key') {
+      console.log('index msg:', msg)
       acc[msg.author] = [{sequence: msg.sequence, key: msg.content.key}]
+      console.log('indexed', acc)
       cache[msg.author] = null
     }
+    return acc
   }))
-
-  //sbot._flumeUse('private-groups/old-remote-keys', Level(1, function (data) {
-  //  if(msg.content.type === 'private-msg-key') {
-  //    return [msg.author, msg.sequence, msg.content.type]
-  //  }
-  //})
 
   sbot.addMap(function (data, cb) {
     if(!u.isBox2(data.value.content)) return cb(null, data)
@@ -83,13 +81,14 @@ exports.init = function (sbot, config) {
   })
 
   sbot.addUnboxer({
+    name: 'private-msg-key',
     key: function (content, value) {
       if(!u.isBox2(content)) return
       //a_state is reverse chrono list of author's private-msg-keys
       //take the latest key that has sequence less than message
       //to decrypt
       var a_state = state[value.author]
-      if(!a_state) return
+      if(!a_state) return console.log('no author state')
 
       var keys_to_try = cache[value.author]
       var a_key
@@ -99,7 +98,7 @@ exports.init = function (sbot, config) {
           break;
         }
       }
-      if(!a_key) return
+      if(!a_key) return console.log('no author key')
 
       if(!keys_to_try)
         keys_to_try = cache[value.author] = keyState.msgKeys.map(function (curve) {
@@ -111,14 +110,10 @@ exports.init = function (sbot, config) {
         })
 
       var ctxt = u.ctxt2Buffer(content), nonce = u.id2Buffer(value.previous)
- //     console.log('-CTXT', ctxt)
- //     console.log('-NONCE', nonce)
-//      console.log('-KEYS', keys_to_try)
-      var key = group_box.unboxKey( //direct recipients
-        ctxt, nonce, keys_to_try, 8
-      )
-      if(key) return key
+      return group_box.unboxKey(ctxt, nonce, keys_to_try, 8)
 
+      /*
+      //should group keys be included in this plugin?
       var group_keys = []
       for(var id in keyState.groupKeys)
         group_keys.push(getGroupMsgKey(nonce, keyState.groupKeys[id]))
@@ -128,34 +123,20 @@ exports.init = function (sbot, config) {
         ctxt, nonce, group_keys, 4
       )
       if(key) return key
+      */
     },
     value: function (content, key, value) {
       if(!u.isBox2(content)) return
-      console.log()
-      console.log('-------------:', value)
       var ctxt = u.ctxt2Buffer(content)
       var nonce = u.id2Buffer(value.previous)
-      console.log("INPUT", {
-        ctxt: ctxt.toString('hex'),
-        nonce: nonce,
-        key: key
-      })
-      console.log(
-          'INPUT_VALUE',
-          cl.crypto_hash_sha256(Buffer.concat([ctxt, nonce, key])),
-          group_box.unboxBody(ctxt, nonce, key)
-        )
-      var ptxt = group_box.unboxBody(ctxt, nonce, key)
-      if(ptxt) {
-        try {
-          console.log("CONTENT", JSON.parse(ptxt.toString()))
-          return JSON.parse(ptxt.toString())
-        } catch (_) {}
-      }
+      try {
+        return JSON.parse(group_box.unboxBody(ctxt, nonce, key).toString())
+      } catch (_) {}
     }
   })
 
   return {
+    get: remoteKeys.get,
 //    addGroupKey: function (group, cb) {
 //      af.get(function () {
 //        keyState.groupKeys[hmac(group.id, group.unbox)] = group)
@@ -187,9 +168,4 @@ exports.init = function (sbot, config) {
     }
   }
 }
-
-
-
-
-
 
