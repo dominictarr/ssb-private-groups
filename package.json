@@ -8,12 +8,15 @@
     "url": "git://github.com/dominictarr/ssb-private-groups.git"
   },
   "dependencies": {
+    "atomic-file": "^1.1.5"
   },
   "devDependencies": {
+    "ssb-server": "^13.4.0",
+    "tape": "^4.9.1"
   },
   "scripts": {
     "test": "set -e; for t in test/*.js; do node $t; done"
   },
   "author": "Dominic Tarr <dominic.tarr@gmail.com> (http://dominictarr.com)",
-  "license": "MIT"  
+  "license": "MIT"
 }
