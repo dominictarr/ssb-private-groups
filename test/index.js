@@ -60,6 +60,7 @@ tape('create a private-msg-key', function (t) {
         var keys = [bob_keys, alice_keys].map(function (key) {
           return scalarmult(bob_keys.private, key.public)
         })
+        var ctxt = group_box.box(ptxt, nonce, keys)
         var _key = group_box.unboxKey(ctxt, nonce, keys, 8)
         t.ok(_key, 'message can be decrypted')
         bob.publish(
