@@ -17,8 +17,13 @@ var cl         = require('chloride')
 //rewrite this code so they don't know the founding message
 //and still be able to decrypt these messages.
 
+function hmac (a, b) {
+  return cl.crypto_auth(u.toBuffer(a), u.toBuffer(b))
+}
+
 function getGroupMsgKey(previous, group) {
-  return hmac(Buffer.concat([previous, group.id]), group.unbox)
+  //or would it be better to use generic hash (with key?)
+  return hmac(Buffer.concat([previous, group.id]), u.toBuffer(group.unbox))
 }
 
 exports.name = 'private-groups'
@@ -142,7 +147,7 @@ exports.init = function (sbot, config) {
     get: remoteKeys.get,
     addGroupKey: function (group, cb) {
       af.get(function () {
-        keyState.groupKeys[hmac(group.id, group.unbox)] = group)
+        keyState.groupKeys[hmac(group.id, group.unbox)] = group
         af.set(keys, cb)
       })
     },
