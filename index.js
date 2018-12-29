@@ -57,14 +57,12 @@ exports.init = function (sbot, config) {
   //cache: {<author>: [scalar_mult(msg_keys[i], <author's latest privacy key>)]
   var cache = {}
 
-
+  //maybe in the future, use a level db here.
   var remoteKeys = sbot._flumeUse('private-groups/remote-keys', Reduce(1, function (acc, data) {
     state = acc = acc || {}
     var msg = data.value
     if(msg.content.type === 'private-msg-key') {
-      console.log('index msg:', msg)
       acc[msg.author] = [{sequence: msg.sequence, key: msg.content.key}]
-      console.log('indexed', acc)
       cache[msg.author] = null
     }
     return acc
@@ -102,28 +100,33 @@ exports.init = function (sbot, config) {
 
       if(!keys_to_try)
         keys_to_try = cache[value.author] = keyState.msgKeys.map(function (curve) {
-          console.log("A_KEY", a_key, curve)
           return cl.crypto_scalarmult(
             Buffer.from(curve.private, 'base64'),
             Buffer.from(a_key, 'base64')
           )
         })
 
-      var ctxt = u.ctxt2Buffer(content), nonce = u.id2Buffer(value.previous)
-      return group_box.unboxKey(ctxt, nonce, keys_to_try, 8)
+      //the very first message cannot be a group_box.
+      if(value.previous == null) return
+      var ctxt = u.ctxt2Buffer(content)
+      var nonce = u.id2Buffer(value.previous)
 
-      /*
+      var key = group_box.unboxKey(ctxt, nonce, keys_to_try, 8)
+      if(key) return key
+
       //should group keys be included in this plugin?
+      //yes, because box2 supports both direct keys and group keys.
       var group_keys = []
       for(var id in keyState.groupKeys)
         group_keys.push(getGroupMsgKey(nonce, keyState.groupKeys[id]))
+
       //note: if we only allow groups in the first 4 slots
       //that means better sort them before any individuals
       key = group_box.unboxKey( //groups we are in
         ctxt, nonce, group_keys, 4
       )
       if(key) return key
-      */
+
     },
     value: function (content, key, value) {
       if(!u.isBox2(content)) return
@@ -137,12 +140,12 @@ exports.init = function (sbot, config) {
 
   return {
     get: remoteKeys.get,
-//    addGroupKey: function (group, cb) {
-//      af.get(function () {
-//        keyState.groupKeys[hmac(group.id, group.unbox)] = group)
-//        af.set(keys, cb)
-//      })
-//    },
+    addGroupKey: function (group, cb) {
+      af.get(function () {
+        keyState.groupKeys[hmac(group.id, group.unbox)] = group)
+        af.set(keys, cb)
+      })
+    },
     addCurvePair: function (curve_keys, cb) {
       onReady(function () {
         if(!u.isCurvePair(curve_keys))
