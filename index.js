@@ -4,7 +4,7 @@ var Reduce     = require('flumeview-reduce')
 var group_box  = require('group-box')
 var mkdirp     = require('mkdirp')
 var u          = require('./util')
-var cl         = require('chloride')
+var ref        = require('ssb-ref')
 
 //by deriving the message key from the group id (the founding
 //message id) and the unbox key for that message, this ensures
@@ -16,15 +16,6 @@ var cl         = require('chloride')
 //and, you can verify this property from the design! you can't
 //rewrite this code so they don't know the founding message
 //and still be able to decrypt these messages.
-
-function hmac (a, b) {
-  return cl.crypto_auth(u.toBuffer(a), u.toBuffer(b))
-}
-
-function getGroupMsgKey(previous, group) {
-  //or would it be better to use generic hash (with key?)
-  return hmac(Buffer.concat([previous, group.id]), u.toBuffer(group.unbox))
-}
 
 exports.name = 'private-groups'
 
@@ -104,17 +95,13 @@ exports.init = function (sbot, config) {
       if(!a_key) return console.log('no author key')
 
       if(!keys_to_try)
-        keys_to_try = cache[value.author] = keyState.msgKeys.map(function (curve) {
-          return cl.crypto_scalarmult(
-            Buffer.from(curve.private, 'base64'),
-            Buffer.from(a_key, 'base64')
-          )
-        })
+        keys_to_try = cache[value.author] = u.scalarmultKeys(a_key, keyState.msgKeys)
 
       //the very first message cannot be a group_box.
       if(value.previous == null) return
       var ctxt = u.ctxt2Buffer(content)
       var nonce = u.id2Buffer(value.previous)
+      console.log(content, ctxt, ctxt.length)
 
       var key = group_box.unboxKey(ctxt, nonce, keys_to_try, 8)
       if(key) return key
@@ -123,7 +110,7 @@ exports.init = function (sbot, config) {
       //yes, because box2 supports both direct keys and group keys.
       var group_keys = []
       for(var id in keyState.groupKeys)
-        group_keys.push(getGroupMsgKey(nonce, keyState.groupKeys[id]))
+        group_keys.push(u.getGroupMsgKey(nonce, keyState.groupKeys[id]))
 
       //note: if we only allow groups in the first 4 slots
       //that means better sort them before any individuals
@@ -146,9 +133,12 @@ exports.init = function (sbot, config) {
   return {
     get: remoteKeys.get,
     addGroupKey: function (group, cb) {
+      console.log(group, u.isUnboxKey(group.unbox))
+      if(!ref.isMsg(group.id)) return cb(new Error('id must be a message id'))
+      if(!u.isUnboxKey(group.unbox)) return cb(new Error('id must be a 32 byte base64 value'))
       af.get(function () {
-        keyState.groupKeys[hmac(group.id, group.unbox)] = group
-        af.set(keys, cb)
+        keyState.groupKeys[u.hmac(u.id2Buffer(group.id), Buffer.from(group.unbox, 'base64'))] = group
+        af.set(keyState, cb)
       })
     },
     addCurvePair: function (curve_keys, cb) {
@@ -176,4 +166,5 @@ exports.init = function (sbot, config) {
     }
   }
 }
+
 

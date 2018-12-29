@@ -8,7 +8,9 @@
     "url": "git://github.com/dominictarr/ssb-private-groups.git"
   },
   "dependencies": {
-    "atomic-file": "^1.1.5"
+    "atomic-file": "^1.1.5",
+    "group-box": "^0.1.0",
+    "is-canonical-base64": "^1.1.1"
   },
   "devDependencies": {
     "ssb-server": "^13.4.0",
