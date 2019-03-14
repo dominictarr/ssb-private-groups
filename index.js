@@ -18,6 +18,13 @@ var ref        = require('ssb-ref')
 //and still be able to decrypt these messages.
 
 exports.name = 'private-groups'
+exports.version = require('./package').version
+exports.manifest = {
+  get: 'async',
+  addGroupKey: 'async',
+  addCurvePair: 'async',
+  forget: 'async'
+}
 
 exports.init = function (sbot, config) {
 
