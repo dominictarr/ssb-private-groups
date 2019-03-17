@@ -38,6 +38,29 @@ exports.init = function (sbot, config) {
     else waiting.push(fn)
   }
 
+  //no, pass in from id too.
+  sbot.box.hook(function (fn, args) {
+    var content = args[0]
+    var state = args[1]
+    var recps = content.recps
+    //check if this is something we can't handle as box2
+    if(!recps.every(function (id) {
+      return ref.isFeed(id) ? state[id] : keyState.groupKeys[id]
+    }))
+      return fn.apply(this, args) //fallback
+
+    var prev = u.id2Buffer(state.id)
+
+    return group_box(
+      Buffer.from(JSON.stringify(content), 'base64'),
+      prev,
+      recps.map(function (id) {
+        return id //???
+      })
+    )
+
+  }
+
   //state:
   /*
     {
@@ -131,7 +154,6 @@ exports.init = function (sbot, config) {
   })
 
   return {
-    get: remoteKeys.get,
     addGroupKey: function (group, cb) {
       console.log(group, u.isUnboxKey(group.unbox))
       if(!ref.isMsg(group.id)) return cb(new Error('id must be a message id'))
@@ -166,5 +188,7 @@ exports.init = function (sbot, config) {
     }
   }
 }
+
+
 
 
