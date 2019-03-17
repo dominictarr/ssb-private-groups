@@ -1,5 +1,10 @@
 # ssb-private-groups
 
+## stability: Experimental
+
+This is a prototype, expect breaking changes.
+If you use this to post messages to your real ssb feed,
+do not expect encrypted format to continue to be supported.
 
 ## receive key
 
