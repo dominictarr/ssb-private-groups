@@ -1,7 +1,7 @@
 {
   "name": "ssb-private-groups",
   "description": "private groups for ssb, prototype",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "homepage": "https://github.com/dominictarr/ssb-private-groups",
   "repository": {
     "type": "git",
